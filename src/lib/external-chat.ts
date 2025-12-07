@@ -1,7 +1,12 @@
-// Direct API calls for chat operations
+import { API_BASE_URL } from './env';
 
-// BACKEND URL (Cloudflare → your server)
-const API_BASE_URL = 'https://backend.tripleg.cloud';
+// Direct API calls for chat operations
+const getBaseUrl = () => {
+  if (!API_BASE_URL) {
+    throw new Error('API base URL is not configured');
+  }
+  return API_BASE_URL;
+};
 
 export interface ExternalUser {
   id: number;
@@ -46,7 +51,7 @@ async function dbRequest<T = Record<string, unknown>>(
 ): Promise<{ success: boolean; data?: T[]; error?: string }> {
   const token = localStorage.getItem('tripleg_auth_token');
 
-  const response = await fetch(`${API_BASE_URL}/api/db`, {
+  const response = await fetch(`${getBaseUrl()}/api/db`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',

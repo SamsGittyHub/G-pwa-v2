@@ -1,11 +1,28 @@
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
-const AUTH_API_URL = import.meta.env.VITE_AUTH_API_URL;
-const AI_API_ENDPOINT = import.meta.env.VITE_AI_API_ENDPOINT;
-const AI_API_KEY = import.meta.env.VITE_AI_API_KEY;
+import {
+  API_BASE_URL,
+  AUTH_API_URL,
+  AI_API_ENDPOINT,
+  AI_API_KEY,
+} from './env';
+
+const getApiBase = () => {
+  if (!API_BASE_URL) {
+    throw new Error('API base URL is not configured');
+  }
+  return API_BASE_URL;
+};
+
+const getAuthApi = () => {
+  const url = AUTH_API_URL || `${getApiBase()}/api/auth`;
+  if (!url) {
+    throw new Error('Auth API URL is not configured');
+  }
+  return url;
+};
 
 // ---------- AUTH ----------
 export async function login(email: string, password: string) {
-  const res = await fetch(`${AUTH_API_URL}/login`, {
+  const res = await fetch(`${getAuthApi()}/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email, password }),
@@ -17,7 +34,7 @@ export async function login(email: string, password: string) {
 
 // example protected call
 export async function getUserProfile(token: string) {
-  const res = await fetch(`${API_BASE_URL}/user/me`, {
+  const res = await fetch(`${getApiBase()}/user/me`, {
     headers: { Authorization: `Bearer ${token}` },
   });
   if (!res.ok) throw new Error('Failed to load profile');
@@ -30,6 +47,14 @@ export async function askGenius(opts: {
   userId?: string;
   sessionId?: string;
 }) {
+  if (!AI_API_ENDPOINT) {
+    throw new Error('AI API endpoint is not configured');
+  }
+
+  if (!AI_API_KEY) {
+    throw new Error('AI API key is not configured');
+  }
+
   const res = await fetch(AI_API_ENDPOINT, {
     method: 'POST',
     headers: {

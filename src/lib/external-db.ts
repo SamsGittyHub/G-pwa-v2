@@ -1,7 +1,14 @@
 // Direct API calls to external PostgreSQL database
 
-// API endpoint - uses same origin when deployed, or configured base URL
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
+import { API_BASE_URL } from './env';
+
+// Resolve backend base URL from env or Vite define
+const getBaseUrl = () => {
+  if (!API_BASE_URL) {
+    throw new Error('API base URL is not configured');
+  }
+  return API_BASE_URL;
+};
 
 export interface ExternalDbResponse<T = Record<string, unknown>> {
   success: boolean;
@@ -22,7 +29,7 @@ async function dbRequest<T = Record<string, unknown>>(
 ): Promise<ExternalDbResponse<T>> {
   const token = localStorage.getItem('tripleg_auth_token');
   
-  const response = await fetch(`${API_BASE_URL}/api/db`, {
+  const response = await fetch(`${getBaseUrl()}/api/db`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',

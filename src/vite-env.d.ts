@@ -27,3 +27,7 @@ interface SpeechRecognitionErrorEvent extends Event {
   error: string;
   message: string;
 }
+
+// Vite define globals from vite.config.ts
+declare const __BACKEND_URL__: string;
+declare const __GENIUS_URL__: string;

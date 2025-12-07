@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { API_BASE_URL, AUTH_API_URL } from '@/lib/env';
 
 interface AuthUser {
   id: number;
@@ -21,8 +22,14 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 const TOKEN_KEY = 'tripleg_auth_token';
 const USER_KEY = 'tripleg_auth_user';
 
-// Auth API endpoint - uses same origin when deployed, or configured base URL
-const AUTH_URL = `${import.meta.env.VITE_API_BASE_URL || ''}/api/auth`;
+// Resolve auth endpoint from env or Vite-defined fallback
+const getAuthUrl = () => {
+  const url = AUTH_API_URL || (API_BASE_URL ? `${API_BASE_URL}/api/auth` : '');
+  if (!url) {
+    throw new Error('API base URL is not configured');
+  }
+  return url;
+};
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
@@ -37,7 +44,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (token && storedUser) {
         try {
           // Verify token with backend
-          const response = await fetch(AUTH_URL, {
+          const response = await fetch(getAuthUrl(), {
             method: 'POST',
             headers: { 
               'Content-Type': 'application/json',
@@ -70,7 +77,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = async (username: string, password: string): Promise<{ success: boolean; message: string }> => {
     try {
-      const response = await fetch(AUTH_URL, {
+      const response = await fetch(getAuthUrl(), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'login', username, password })
@@ -95,14 +102,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signup = async (email: string, username: string, password: string): Promise<{ success: boolean; message: string }> => {
     try {
-      const response = await fetch(AUTH_URL, {
+      const response = await fetch(getAuthUrl(), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'signup', email: email || null, username, password })
       });
 
       if (!response.ok) {
-        return { success: false, message: `Server error: ${response.status}. Make sure VITE_API_BASE_URL is configured.` };
+        return { success: false, message: `Server error: ${response.status}. Unable to reach auth service.` };
       }
 
       const data = await response.json();

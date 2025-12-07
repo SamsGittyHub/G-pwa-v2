@@ -7,10 +7,17 @@ export default defineConfig(({ mode }) => {
   // Load .env variables for dev/prod
   const env = loadEnv(mode, process.cwd(), '');
 
-  const BACKEND_URL =
-    mode === 'development'
-      ? 'http://localhost:3000'
-      : 'https://backend.tripleg.cloud';
+  // Set VITE_API_BASE_URL if not already set in .env file
+  if (!env.VITE_API_BASE_URL) {
+    const backendUrl =
+      mode === 'development'
+        ? 'http://localhost:3000'
+        : 'https://backend.tripleg.cloud';
+    process.env.VITE_API_BASE_URL = backendUrl;
+    env.VITE_API_BASE_URL = backendUrl;
+  }
+
+  const BACKEND_URL = env.VITE_API_BASE_URL;
 
   const GENIUS_URL =
     mode === 'development'
@@ -32,6 +39,9 @@ export default defineConfig(({ mode }) => {
       __BACKEND_URL__: JSON.stringify(BACKEND_URL),
       __GENIUS_URL__: JSON.stringify(GENIUS_URL),
     },
+
+    // Expose VITE_API_BASE_URL to the client
+    envPrefix: 'VITE_',
 
     plugins: [
       react(),

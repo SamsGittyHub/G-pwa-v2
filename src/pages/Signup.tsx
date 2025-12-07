@@ -27,12 +27,12 @@ const Signup = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!displayName.trim() || !password.trim()) {
-      toast.error('Please fill in username and password');
+    if (!email.trim() || !displayName.trim() || !password.trim()) {
+      toast.error('Please fill in all fields');
       return;
     }
 
-    if (email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       toast.error('Please enter a valid email address');
       return;
     }
@@ -72,10 +72,10 @@ const Signup = () => {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <Input
-                type="text"
-                placeholder="Username"
-                value={displayName}
-                onChange={(e) => setDisplayName(e.target.value)}
+                type="email"
+                placeholder="Email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
                 className="h-12 rounded-xl bg-background/50 border-border/50 focus:border-primary"
               />
             </div>
@@ -83,9 +83,9 @@ const Signup = () => {
             <div>
               <Input
                 type="text"
-                placeholder="Email (optional)"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                placeholder="Username"
+                value={displayName}
+                onChange={(e) => setDisplayName(e.target.value)}
                 className="h-12 rounded-xl bg-background/50 border-border/50 focus:border-primary"
               />
             </div>

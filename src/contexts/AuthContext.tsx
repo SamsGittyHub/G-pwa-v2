@@ -12,7 +12,7 @@ interface AuthContextType {
   externalUserId: number | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-  login: (username: string, password: string) => Promise<{ success: boolean; message: string }>;
+  login: (email: string, password: string) => Promise<{ success: boolean; message: string }>;
   signup: (email: string, username: string, password: string) => Promise<{ success: boolean; message: string }>;
   logout: () => void;
 }
@@ -31,9 +31,9 @@ const getAuthUrl = () => {
   return url;
 };
 
-// Perform auth request; try REST-style endpoints first, then legacy action body
+// Perform auth request
 const authRequest = async (
-  endpoint: 'login' | 'signup' | 'verify',
+  endpoint: 'login' | 'register' | 'verify',
   payload: Record<string, unknown>,
   authToken?: string
 ) => {
@@ -46,28 +46,14 @@ const authRequest = async (
 
   console.log('[Auth] Calling:', url, 'with payload:', payload);
 
-  // First attempt: RESTful endpoint (e.g., /api/auth/login)
-  const primary = await fetch(url, {
+  const response = await fetch(url, {
     method: 'POST',
     headers,
     body: JSON.stringify(payload),
   });
 
-  console.log('[Auth] Response status:', primary.status);
-
-  // If 404, retry legacy single-endpoint with action
-  if (primary.status === 404) {
-    console.log('[Auth] Falling back to legacy endpoint:', base);
-    const fallback = await fetch(base, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({ action: endpoint, ...payload }),
-    });
-    console.log('[Auth] Fallback response status:', fallback.status);
-    return fallback;
-  }
-
-  return primary;
+  console.log('[Auth] Response status:', response.status);
+  return response;
 };
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -82,26 +68,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       
       if (token && storedUser) {
         try {
-          // Verify token with backend
-          const response = await authRequest('verify', {}, token);
+          // Try to verify token with backend, but trust local storage if endpoint doesn't exist
+          try {
+            const base = getAuthUrl();
+            const response = await fetch(`${base}/verify`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`,
+              },
+              body: JSON.stringify({}),
+            });
 
-          // If verify endpoint doesn't exist (404), trust local storage
-          if (response.status === 404) {
-            setUser(JSON.parse(storedUser));
-          } else if (response.ok) {
-            const data = await response.json();
-            // Handle both {success, user} and direct {user} responses
-            const userData = data?.user || (data?.id ? data : null);
-            if (userData) {
-              setUser(userData);
+            if (response.status === 404) {
+              // Verify endpoint doesn't exist, trust local storage
+              setUser(JSON.parse(storedUser));
+            } else if (response.ok) {
+              const data = await response.json();
+              const userData = data?.user || (data?.id ? data : null);
+              if (userData) {
+                setUser(userData);
+              } else {
+                localStorage.removeItem(TOKEN_KEY);
+                localStorage.removeItem(USER_KEY);
+              }
             } else {
+              // Token invalid, clear storage
               localStorage.removeItem(TOKEN_KEY);
               localStorage.removeItem(USER_KEY);
             }
-          } else {
-            // Token invalid, clear storage
-            localStorage.removeItem(TOKEN_KEY);
-            localStorage.removeItem(USER_KEY);
+          } catch {
+            // Network error, trust local storage
+            setUser(JSON.parse(storedUser));
           }
         } catch (error) {
           console.error('Session restore error:', error);
@@ -116,11 +114,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     restoreSession();
   }, []);
 
-  const login = async (username: string, password: string): Promise<{ success: boolean; message: string }> => {
+  const login = async (email: string, password: string): Promise<{ success: boolean; message: string }> => {
     try {
       const response = await authRequest('login', {
-        username,
-        email: username, // some backends expect email instead of username
+        email,
         password,
       });
 
@@ -153,8 +150,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signup = async (email: string, username: string, password: string): Promise<{ success: boolean; message: string }> => {
     try {
-      const response = await authRequest('signup', {
-        email: email || username, // fallback to username as email if not provided
+      const response = await authRequest('register', {
+        email,
         username,
         password,
       });

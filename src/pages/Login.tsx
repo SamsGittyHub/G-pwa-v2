@@ -9,7 +9,7 @@ import { toast } from 'sonner';
 import logo from '@/assets/logo.png';
 
 const Login = () => {
-  const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -25,13 +25,13 @@ const Login = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!username.trim() || !password.trim()) {
+    if (!email.trim() || !password.trim()) {
       toast.error('Please fill in all fields');
       return;
     }
 
     setIsLoading(true);
-    const result = await login(username, password);
+    const result = await login(email, password);
     setIsLoading(false);
 
     if (result.success) {
@@ -55,10 +55,10 @@ const Login = () => {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <Input
-                type="text"
-                placeholder="Username"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
+                type="email"
+                placeholder="Email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
                 className="h-12 rounded-xl bg-background/50 border-border/50 focus:border-primary"
               />
             </div>

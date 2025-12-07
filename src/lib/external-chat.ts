@@ -1,7 +1,7 @@
 // Direct API calls for chat operations
 
-// API endpoint - uses same origin when deployed, or configured base URL
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
+// BACKEND URL (Cloudflare → your server)
+const API_BASE_URL = 'https://backend.tripleg.cloud';
 
 export interface ExternalUser {
   id: number;
@@ -45,12 +45,12 @@ async function dbRequest<T = Record<string, unknown>>(
   body: Record<string, unknown>
 ): Promise<{ success: boolean; data?: T[]; error?: string }> {
   const token = localStorage.getItem('tripleg_auth_token');
-  
+
   const response = await fetch(`${API_BASE_URL}/api/db`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      ...(token && { 'Authorization': `Bearer ${token}` }),
+      ...(token && { Authorization: `Bearer ${token}` }),
     },
     body: JSON.stringify(body),
   });
@@ -73,27 +73,24 @@ export async function syncExternalUser(
   displayName?: string
 ): Promise<{ externalUserId: number | null; error?: string }> {
   try {
-    // First, check if user already exists by email
     const selectResult = await dbRequest<{ id: number }>({
       action: 'query',
-      query: `SELECT id FROM users WHERE email = '${email}' LIMIT 1`
+      query: `SELECT id FROM users WHERE email = '${email}' LIMIT 1`,
     });
 
     if (selectResult.data && selectResult.data.length > 0) {
-      // User exists, update last_login
       const externalUserId = selectResult.data[0].id;
-      
+
       await dbRequest({
         action: 'update',
         table: 'users',
         data: { last_login: new Date().toISOString() },
-        filters: { id: externalUserId }
+        filters: { id: externalUserId },
       });
 
       return { externalUserId };
     }
 
-    // User doesn't exist, create them
     const username = displayName || email.split('@')[0];
     const insertResult = await dbRequest<{ id: number }>({
       action: 'insert',
@@ -101,8 +98,8 @@ export async function syncExternalUser(
       data: {
         username,
         email,
-        last_login: new Date().toISOString()
-      }
+        last_login: new Date().toISOString(),
+      },
     });
 
     if (insertResult.data && insertResult.data.length > 0) {
@@ -112,7 +109,10 @@ export async function syncExternalUser(
     return { externalUserId: null, error: 'Failed to create user' };
   } catch (error) {
     console.error('Error syncing external user:', error);
-    return { externalUserId: null, error: error instanceof Error ? error.message : 'Unknown error' };
+    return {
+      externalUserId: null,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    };
   }
 }
 
@@ -125,7 +125,7 @@ export async function loadExternalConversations(
   try {
     const result = await dbRequest<ExternalConversation>({
       action: 'query',
-      query: `SELECT * FROM conversations WHERE user_id = ${externalUserId} AND is_archived = false ORDER BY updated_at DESC LIMIT 50`
+      query: `SELECT * FROM conversations WHERE user_id = ${externalUserId} AND is_archived = false ORDER BY updated_at DESC LIMIT 50`,
     });
 
     return result.data || [];
@@ -148,8 +148,8 @@ export async function createExternalConversation(
       table: 'conversations',
       data: {
         user_id: externalUserId,
-        title
-      }
+        title,
+      },
     });
 
     return result.data?.[0] || null;
@@ -171,7 +171,7 @@ export async function updateExternalConversation(
       action: 'update',
       table: 'conversations',
       data: updates,
-      filters: { id: conversationId }
+      filters: { id: conversationId },
     });
 
     return true;
@@ -184,14 +184,15 @@ export async function updateExternalConversation(
 /**
  * Delete (archive) a conversation
  */
-export async function deleteExternalConversation(conversationId: number): Promise<boolean> {
+export async function deleteExternalConversation(
+  conversationId: number
+): Promise<boolean> {
   try {
-    // Archive instead of delete
     await dbRequest({
       action: 'update',
       table: 'conversations',
       data: { is_archived: true },
-      filters: { id: conversationId }
+      filters: { id: conversationId },
     });
 
     return true;
@@ -210,7 +211,7 @@ export async function loadExternalMessages(
   try {
     const result = await dbRequest<ExternalMessage>({
       action: 'query',
-      query: `SELECT * FROM messages WHERE conversation_id = ${conversationId} ORDER BY created_at ASC LIMIT 100`
+      query: `SELECT * FROM messages WHERE conversation_id = ${conversationId} ORDER BY created_at ASC LIMIT 100`,
     });
 
     return result.data || [];
@@ -247,8 +248,8 @@ export async function saveExternalMessage(
         model_used: options?.modelUsed,
         tokens_used: options?.tokensUsed,
         latency_ms: options?.latencyMs,
-        metadata: options?.metadata ? JSON.stringify(options.metadata) : null
-      }
+        metadata: options?.metadata ? JSON.stringify(options.metadata) : null,
+      },
     });
 
     return result.data?.[0] || null;
@@ -267,7 +268,7 @@ export async function getExternalUserPreferences(
   try {
     const result = await dbRequest<{ preferences: Record<string, unknown> }>({
       action: 'query',
-      query: `SELECT preferences FROM users WHERE id = ${externalUserId}`
+      query: `SELECT preferences FROM users WHERE id = ${externalUserId}`,
     });
 
     return result.data?.[0]?.preferences || null;
@@ -289,7 +290,7 @@ export async function updateExternalUserPreferences(
       action: 'update',
       table: 'users',
       data: { preferences: JSON.stringify(preferences) },
-      filters: { id: externalUserId }
+      filters: { id: externalUserId },
     });
 
     return true;

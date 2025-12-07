@@ -31,6 +31,33 @@ const getAuthUrl = () => {
   return url;
 };
 
+// Perform auth request; try REST-style endpoints first, then legacy action body
+const authRequest = async (
+  endpoint: 'login' | 'signup' | 'verify',
+  payload: Record<string, unknown>
+) => {
+  const base = getAuthUrl();
+
+  // First attempt: RESTful endpoint (e.g., /api/auth/login)
+  const primary = await fetch(`${base}/${endpoint}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+
+  // If 404, retry legacy single-endpoint with action
+  if (primary.status === 404) {
+    const fallback = await fetch(base, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: endpoint, ...payload }),
+    });
+    return fallback;
+  }
+
+  return primary;
+};
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -44,13 +71,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (token && storedUser) {
         try {
           // Verify token with backend
-          const response = await fetch(getAuthUrl(), {
-            method: 'POST',
-            headers: { 
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify({ action: 'verify' })
+          const response = await authRequest('verify', {
+            token,
           });
 
           const data = await response.json();
@@ -77,10 +99,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = async (username: string, password: string): Promise<{ success: boolean; message: string }> => {
     try {
-      const response = await fetch(getAuthUrl(), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'login', username, password })
+      const response = await authRequest('login', {
+        username,
+        email: username, // some backends expect email instead of username
+        password,
       });
 
       const data = await response.json();
@@ -102,10 +124,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signup = async (email: string, username: string, password: string): Promise<{ success: boolean; message: string }> => {
     try {
-      const response = await fetch(getAuthUrl(), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'signup', email: email || null, username, password })
+      const response = await authRequest('signup', {
+        email: email || username, // fallback to username as email if not provided
+        username,
+        password,
       });
 
       if (!response.ok) {

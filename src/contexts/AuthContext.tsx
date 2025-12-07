@@ -34,14 +34,19 @@ const getAuthUrl = () => {
 // Perform auth request; try REST-style endpoints first, then legacy action body
 const authRequest = async (
   endpoint: 'login' | 'signup' | 'verify',
-  payload: Record<string, unknown>
+  payload: Record<string, unknown>,
+  authToken?: string
 ) => {
   const base = getAuthUrl();
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (authToken) {
+    headers['Authorization'] = `Bearer ${authToken}`;
+  }
 
   // First attempt: RESTful endpoint (e.g., /api/auth/login)
   const primary = await fetch(`${base}/${endpoint}`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers,
     body: JSON.stringify(payload),
   });
 
@@ -49,7 +54,7 @@ const authRequest = async (
   if (primary.status === 404) {
     const fallback = await fetch(base, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify({ action: endpoint, ...payload }),
     });
     return fallback;
@@ -71,14 +76,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (token && storedUser) {
         try {
           // Verify token with backend
-          const response = await authRequest('verify', {
-            token,
-          });
+          const response = await authRequest('verify', {}, token);
 
-          const data = await response.json();
-
-          if (data?.success && data?.user) {
-            setUser(data.user);
+          // If verify endpoint doesn't exist (404), trust local storage
+          if (response.status === 404) {
+            setUser(JSON.parse(storedUser));
+          } else if (response.ok) {
+            const data = await response.json();
+            // Handle both {success, user} and direct {user} responses
+            const userData = data?.user || (data?.id ? data : null);
+            if (userData) {
+              setUser(userData);
+            } else {
+              localStorage.removeItem(TOKEN_KEY);
+              localStorage.removeItem(USER_KEY);
+            }
           } else {
             // Token invalid, clear storage
             localStorage.removeItem(TOKEN_KEY);
@@ -105,10 +117,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         password,
       });
 
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        return { success: false, message: errorData?.error || `Login failed (${response.status})` };
+      }
+
       const data = await response.json();
 
-      if (!data?.success) {
+      // Handle both {success, token, user} and direct {token, user} responses
+      if (data?.error || (data?.success === false)) {
         return { success: false, message: data?.error || 'Login failed' };
+      }
+
+      if (!data?.token || !data?.user) {
+        return { success: false, message: 'Invalid response from server' };
       }
 
       // Store token and user
@@ -131,13 +153,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
 
       if (!response.ok) {
-        return { success: false, message: `Server error: ${response.status}. Unable to reach auth service.` };
+        const errorData = await response.json().catch(() => ({}));
+        return { success: false, message: errorData?.error || `Signup failed (${response.status})` };
       }
 
       const data = await response.json();
 
-      if (!data?.success) {
+      // Handle both {success, token, user} and direct {token, user} responses
+      if (data?.error || (data?.success === false)) {
         return { success: false, message: data?.error || 'Signup failed' };
+      }
+
+      if (!data?.token || !data?.user) {
+        return { success: false, message: 'Invalid response from server' };
       }
 
       // Store token and user

@@ -38,25 +38,32 @@ const authRequest = async (
   authToken?: string
 ) => {
   const base = getAuthUrl();
+  const url = `${base}/${endpoint}`;
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
   if (authToken) {
     headers['Authorization'] = `Bearer ${authToken}`;
   }
 
+  console.log('[Auth] Calling:', url, 'with payload:', payload);
+
   // First attempt: RESTful endpoint (e.g., /api/auth/login)
-  const primary = await fetch(`${base}/${endpoint}`, {
+  const primary = await fetch(url, {
     method: 'POST',
     headers,
     body: JSON.stringify(payload),
   });
 
+  console.log('[Auth] Response status:', primary.status);
+
   // If 404, retry legacy single-endpoint with action
   if (primary.status === 404) {
+    console.log('[Auth] Falling back to legacy endpoint:', base);
     const fallback = await fetch(base, {
       method: 'POST',
       headers,
       body: JSON.stringify({ action: endpoint, ...payload }),
     });
+    console.log('[Auth] Fallback response status:', fallback.status);
     return fallback;
   }
 

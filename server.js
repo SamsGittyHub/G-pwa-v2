@@ -292,7 +292,8 @@ app.post('/api/db', async (req, res) => {
 app.use(express.static(join(__dirname, 'dist')));
 
 // Handle SPA routing - serve index.html for all non-file routes
-app.get('*', (req, res) => {
+// Express 5 requires different wildcard syntax
+app.use((req, res) => {
   res.sendFile(join(__dirname, 'dist', 'index.html'));
 });
 

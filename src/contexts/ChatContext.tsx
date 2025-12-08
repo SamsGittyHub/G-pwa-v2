@@ -295,10 +295,10 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       attachments,
     };
 
-    const newMessages = [...messages, userMessage];
-    setMessages(newMessages);
+    // Use functional update to avoid stale closure issues
+    setMessages(prev => [...prev, userMessage]);
 
-    // Update conversation title if first message
+    // Update conversation title if first message (optimistic update)
     if (messages.length === 0) {
       const newTitle = content.slice(0, 30);
       setCurrentConversation(prev => prev ? { ...prev, title: newTitle } : null);
@@ -328,10 +328,15 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       if (currentConversation.prompt) systemPrompts.push(currentConversation.prompt);
       const systemPrompt = systemPrompts.join('\n\n');
 
+      // Use current messages for context (need to get latest state)
+      // Since we can't access updated state immediately, we construct the payload manually
+      // This includes the new user message we just added
+      const contextMessages = [...messages, userMessage];
+
       if (endpoint) {
         const messagesPayload = [
           ...(systemPrompt ? [{ role: 'system', content: systemPrompt }] : []),
-          ...newMessages.map(m => ({ role: m.role, content: m.content })),
+          ...contextMessages.map(m => ({ role: m.role, content: m.content })),
         ];
 
         const response = await fetch(endpoint, {
@@ -369,8 +374,13 @@ export function ChatProvider({ children }: { children: ReactNode }) {
         timestamp: new Date(),
       };
 
-      const finalMessages = [...newMessages, assistantMessage];
-      setMessages(finalMessages);
+      setMessages(prev => [...prev, assistantMessage]);
+
+      // Save sync logic (optional)
+      if (externalUserId) {
+        const convId = currentConversation.externalId;
+        // ... (background sync logic)
+      }
 
     } catch (error) {
       console.error('Error sending message:', error);
@@ -380,8 +390,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
         content: error instanceof Error ? error.message : 'Connection error. Please check your AI configuration in Settings.',
         timestamp: new Date(),
       };
-      const finalMessages = [...newMessages, errorMessage];
-      setMessages(finalMessages);
+      setMessages(prev => [...prev, errorMessage]);
     } finally {
       setIsLoading(false);
     }

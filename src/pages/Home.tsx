@@ -83,7 +83,7 @@ const Home = () => {
   return (
     <div className="min-h-screen bg-background flex flex-col">
       {/* Header */}
-      <header className="sticky top-0 z-10 bg-background/80 backdrop-blur-2xl border-b border-border/50">
+      <header className="sticky top-0 z-10 bg-background/80 backdrop-blur-2xl border-b border-border/50 safe-area-top">
         <div className="px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <img src={logo} alt="TripleG" className="w-10 h-10 rounded-xl" />

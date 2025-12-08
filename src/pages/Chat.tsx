@@ -57,7 +57,7 @@ const Chat = () => {
   return (
     <div className="min-h-screen bg-background flex flex-col">
       {/* Header */}
-      <header className="sticky top-0 z-10 bg-background/80 backdrop-blur-2xl border-b border-border/50">
+      <header className="sticky top-0 z-10 bg-background/80 backdrop-blur-2xl border-b border-border/50 safe-area-top">
         <div className="px-2 py-3 flex items-center justify-between">
           <div className="flex items-center gap-1">
             <Button

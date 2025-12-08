@@ -8,9 +8,16 @@ const resolvedBackend =
   normalizeBaseUrl(__BACKEND_URL__);
 
 export const API_BASE_URL = resolvedBackend;
+
+// Auth API - can be separate from main backend
 export const AUTH_API_URL =
   normalizeBaseUrl(import.meta.env.VITE_AUTH_API_URL) ||
   (resolvedBackend ? `${resolvedBackend}/api/auth` : '');
+
+// Database API - defaults to same origin (for Railway where server.js serves it)
+// Set VITE_DB_API_URL if your /api/db is on a different host
+export const DB_API_URL =
+  normalizeBaseUrl(import.meta.env.VITE_DB_API_URL) || '';
 
 export const AI_API_ENDPOINT =
   import.meta.env.VITE_AI_API_ENDPOINT?.trim() || __GENIUS_URL__;

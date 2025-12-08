@@ -1,12 +1,8 @@
-import { API_BASE_URL } from './env';
+import { DB_API_URL } from './env';
 
 // Direct API calls for chat operations
-const getBaseUrl = () => {
-  if (!API_BASE_URL) {
-    throw new Error('API base URL is not configured');
-  }
-  return API_BASE_URL;
-};
+// Uses DB_API_URL if set, otherwise uses same-origin (relative URL)
+const getDbUrl = () => DB_API_URL;
 
 export interface ExternalUser {
   id: number;
@@ -50,8 +46,12 @@ async function dbRequest<T = Record<string, unknown>>(
   body: Record<string, unknown>
 ): Promise<{ success: boolean; data?: T[]; error?: string }> {
   const token = localStorage.getItem('tripleg_auth_token');
+  const baseUrl = getDbUrl();
+  const url = baseUrl ? `${baseUrl}/api/db` : '/api/db';
 
-  const response = await fetch(`${getBaseUrl()}/api/db`, {
+  console.log('[DB] Calling:', url, 'with action:', body.action);
+
+  const response = await fetch(url, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -59,6 +59,8 @@ async function dbRequest<T = Record<string, unknown>>(
     },
     body: JSON.stringify(body),
   });
+
+  console.log('[DB] Response status:', response.status);
 
   if (!response.ok) {
     const errorText = await response.text();

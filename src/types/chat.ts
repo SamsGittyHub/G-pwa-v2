@@ -23,6 +23,7 @@ export interface Conversation {
   projectId?: string;
   prompt?: string;
   selectedModelId?: string;
+  externalId?: number; // ID from external database (for sync)
 }
 
 export interface Project {

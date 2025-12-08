@@ -145,29 +145,37 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   };
 
   const createConversation = async (projectId?: string): Promise<Conversation | null> => {
-    if (!externalUserId) return null;
+    // Create local conversation first (works offline)
+    const localConv: Conversation = {
+      id: crypto.randomUUID(),
+      title: 'New Chat',
+      preview: 'Start a conversation...',
+      timestamp: new Date(),
+      projectId,
+      selectedModelId: 'default',
+    };
 
-    try {
-      const extConv = await createExternalConversation(externalUserId, 'New Chat');
-      
-      if (!extConv) {
-        toast.error('Failed to create conversation');
-        return null;
+    setConversations(prev => [localConv, ...prev]);
+    setCurrentConversation(localConv);
+    setMessages([]);
+
+    // Try to sync with external DB in background (optional)
+    if (externalUserId) {
+      try {
+        const extConv = await createExternalConversation(externalUserId, 'New Chat');
+        if (extConv) {
+          // Update local conv with external ID for future syncs
+          const syncedConv = { ...localConv, externalId: extConv.id };
+          setConversations(prev => prev.map(c => c.id === localConv.id ? syncedConv : c));
+          setCurrentConversation(syncedConv);
+        }
+      } catch (error) {
+        console.warn('Could not sync conversation to database:', error);
+        // Continue working locally
       }
-
-      const newConv = toLocalConversation(extConv);
-      newConv.projectId = projectId;
-      newConv.preview = 'Start a conversation...';
-
-      setConversations(prev => [newConv, ...prev]);
-      setCurrentConversation(newConv);
-      setMessages([]);
-      return newConv;
-    } catch (error) {
-      console.error('Error creating conversation:', error);
-      toast.error('Failed to create conversation');
-      return null;
     }
+
+    return localConv;
   };
 
   const selectConversation = async (id: string) => {
@@ -277,9 +285,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   };
 
   const sendMessage = async (content: string, attachments?: Attachment[]) => {
-    if (!currentConversation || !externalUserId) return;
-
-    const conversationId = parseInt(currentConversation.id);
+    if (!currentConversation) return;
 
     const userMessage: Message = {
       id: crypto.randomUUID(),
@@ -292,21 +298,13 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     const newMessages = [...messages, userMessage];
     setMessages(newMessages);
 
-    // Save user message to external DB
-    try {
-      await saveExternalMessage(conversationId, 'user', content);
-
-      // Update conversation title if first message
-      if (messages.length === 0) {
-        await updateExternalConversation(conversationId, { title: content.slice(0, 30) });
-        
-        setCurrentConversation(prev => prev ? { ...prev, title: content.slice(0, 30) } : null);
-        setConversations(prev => prev.map(c => 
-          c.id === currentConversation.id ? { ...c, title: content.slice(0, 30) } : c
-        ));
-      }
-    } catch (error) {
-      console.error('Error saving user message:', error);
+    // Update conversation title if first message
+    if (messages.length === 0) {
+      const newTitle = content.slice(0, 30);
+      setCurrentConversation(prev => prev ? { ...prev, title: newTitle } : null);
+      setConversations(prev => prev.map(c => 
+        c.id === currentConversation.id ? { ...c, title: newTitle } : c
+      ));
     }
 
     setIsLoading(true);
@@ -345,7 +343,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
           body: JSON.stringify({
             model: modelName,
             messages: messagesPayload,
-            max_tokens: 256,
+            max_tokens: 1024,
             session_id: currentConversation.id,
           }),
         });
@@ -374,12 +372,6 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       const finalMessages = [...newMessages, assistantMessage];
       setMessages(finalMessages);
 
-      // Save assistant message to external DB with metadata
-      await saveExternalMessage(conversationId, 'assistant', assistantContent, {
-        modelUsed: modelName,
-        tokensUsed,
-        latencyMs,
-      });
     } catch (error) {
       console.error('Error sending message:', error);
       const errorMessage: Message = {
@@ -390,15 +382,6 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       };
       const finalMessages = [...newMessages, errorMessage];
       setMessages(finalMessages);
-
-      // Save error message to external DB
-      try {
-        await saveExternalMessage(conversationId, 'assistant', errorMessage.content, {
-          metadata: { error: true }
-        });
-      } catch (e) {
-        console.error('Error saving error message:', e);
-      }
     } finally {
       setIsLoading(false);
     }

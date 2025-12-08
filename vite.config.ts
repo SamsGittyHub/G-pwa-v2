@@ -22,7 +22,7 @@ export default defineConfig(({ mode }) => {
   const GENIUS_URL =
     mode === 'development'
       ? 'http://localhost:8000/v1/chat/completions'
-      : 'https://jupyter.tripleg.cloud/v1/chat/completions';
+      : 'https://backend.tripleg.cloud/api/proxy/completions';
 
   return {
     server: {

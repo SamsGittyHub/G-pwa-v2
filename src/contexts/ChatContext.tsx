@@ -3,6 +3,7 @@ import { Message, Conversation, AIConfig, Project, AIModel, ThemeConfig, Attachm
 import { DEFAULT_THEME, applyTheme } from '@/lib/themes';
 import { useAuth } from './AuthContext';
 import { toast } from 'sonner';
+import { AI_API_ENDPOINT, AI_API_KEY } from '@/lib/env';
 import {
   loadExternalConversations,
   createExternalConversation,
@@ -48,8 +49,8 @@ const THEME_KEY = 'tripleg_theme';
 const AI_CONFIG_KEY = 'tripleg_ai_config';
 
 const defaultAIConfig: AIConfig = {
-  endpoint: 'https://janiece-tomfoolish-impurely.ngrok-free.dev/v1/chat/completions',
-  apiKey: 'sk-999',
+  endpoint: AI_API_ENDPOINT || '',
+  apiKey: AI_API_KEY || '',
   modelName: 'Genius',
   masterPrompt: 'You are Genius, an AI assistant created by TripleG.',
 };
@@ -161,18 +162,18 @@ export function ChatProvider({ children }: { children: ReactNode }) {
 
     // Try to sync with external DB in background (optional)
     if (externalUserId) {
-      try {
-        const extConv = await createExternalConversation(externalUserId, 'New Chat');
-        if (extConv) {
-          // Update local conv with external ID for future syncs
-          const syncedConv = { ...localConv, externalId: extConv.id };
-          setConversations(prev => prev.map(c => c.id === localConv.id ? syncedConv : c));
-          setCurrentConversation(syncedConv);
-        }
-      } catch (error) {
-        console.warn('Could not sync conversation to database:', error);
-        // Continue working locally
-      }
+      createExternalConversation(externalUserId, 'New Chat')
+        .then(extConv => {
+          if (extConv) {
+            // Update local conv with external ID for future syncs
+            const syncedConv = { ...localConv, externalId: extConv.id };
+            setConversations(prev => prev.map(c => c.id === localConv.id ? syncedConv : c));
+            setCurrentConversation(prev => prev?.id === localConv.id ? syncedConv : prev);
+          }
+        })
+        .catch(error => {
+          console.warn('Could not sync conversation to database (working offline):', error);
+        });
     }
 
     return localConv;

@@ -21,6 +21,11 @@ const dbConfig = {
 
 const pool = new pg.Pool(dbConfig);
 
+// Test database connection on startup
+pool.query('SELECT 1')
+  .then(() => console.log('Database connected successfully'))
+  .catch(err => console.error('Database connection error:', err.message));
+
 // JWT secret
 const JWT_SECRET = process.env.JWT_SECRET || 'tripleg-secret-key-change-in-production';
 

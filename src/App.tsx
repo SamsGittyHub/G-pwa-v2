@@ -13,6 +13,8 @@ import Chat from "./pages/Chat";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 import Install from "./pages/Install";
+import Privacy from "./pages/Privacy";
+import Terms from "./pages/Terms";
 
 const queryClient = new QueryClient();
 
@@ -61,6 +63,8 @@ function AppRoutes() {
         }
       />
       <Route path="/install" element={<Install />} />
+      <Route path="/privacy" element={<Privacy />} />
+      <Route path="/terms" element={<Terms />} />
       <Route path="*" element={<NotFound />} />
     </Routes>
   );
